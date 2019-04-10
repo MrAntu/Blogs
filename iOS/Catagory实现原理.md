@@ -1,5 +1,6 @@
 # Category实现原理
 在objc-runtime-new.h文件中，可以找到category_t结构体的定义
+
 ```C
 struct category_t {
     const char *name; //类名
@@ -111,9 +112,9 @@ static struct /*_method_list_t*/ {
 };
 ```
 上述_OBJC_$_CATEGORY_CLASS_METHODS_Person_$_test进行初始化，从名字可以看出此对象为类方法的实现
-
 <br>
 最后我们发现属性列表的实现
+
 ```C
 static struct /*_prop_list_t*/ {
 	unsigned int entsize;  // sizeof(struct _prop_t)
@@ -138,8 +139,10 @@ static struct _category_t _OBJC_$_CATEGORY_Person_$_test __attribute__ ((used, s
 	(const struct _prop_list_t *)&_OBJC_$_PROP_LIST_Person_$_test,
 };
 ```
+
 与_category_t结构体一一对应上，实现了具体的赋值
 最后发现静态方法OBJC_CATEGORY_SETUP_$_Person_$_test
+
 ```C
 static void OBJC_CATEGORY_SETUP_$_Person_$_test(void ) {
 	_OBJC_$_CATEGORY_Person_$_test.cls = &OBJC_CLASS_$_Person;
@@ -148,13 +151,14 @@ __declspec(allocate(".objc_inithooks$B")) static void *OBJC_CATEGORY_SETUP[] = {
 	(void *)&OBJC_CATEGORY_SETUP_$_Person_$_test,
 };
 ```
+
 最后将_OBJC_$_CATEGORY_Preson_$_Test的cls指针指向OBJC_CLASS_$_Preson结构体地址。我们这里可以看出，cls指针指向的应该是分类的主类类对象的地址。
 此方法最后赢应该是在objc_inithooks的时候调用
-
 <br>
 通过以上分析我们发现，分类源码中确实是将我们定义的对象方法，类方法，属性等存放在catagory_t结构体中。
 接下来我们在回到runtime源码查看catagory_t是如何存储在类对象中的。
 首先来到runtime初始化函数，源码在objc-os.mm文件
+
 ```C
 #if !__OBJC2__
 static __attribute__((constructor))
@@ -178,9 +182,10 @@ void _objc_init(void)
                                              1/*batch*/, &map_2_images);
     dyld_register_image_state_change_handler(dyld_image_state_dependents_initialized, 0/*not batch*/, &load_images);
 }
-
 ```
+
 点击进入map_2_images（images代表模块）函数，再进入map_images_nolock函数，并且在此函数最后找到_read_images函数，最终找到加载category相关的代码。
+
 ```C
     // Discover categories. 
     for (EACH_HEADER) {
@@ -241,6 +246,7 @@ void _objc_init(void)
 ```
 
 从这段代码可以看出，是用来查找有没有分类的，通过_getObjc2CategoryList获取分类列表，进行遍历，获取其中的实例方法，属性，协议，类方法。最终都调用了remethodizeClass函数，进入内部查看
+
 ```C
 static void remethodizeClass(Class cls)
 {
@@ -264,7 +270,9 @@ static void remethodizeClass(Class cls)
 }
 
 ```
+
 通过代码发现attachCategories函数接受了cls对象，分类数组cats，一个对象可以对应多个分类。我们继续查看attachCategories函数内部实现
+
 ```C
 static void 
 attachCategories(Class cls, category_list *cats, bool flush_caches)
@@ -330,9 +338,11 @@ attachCategories(Class cls, category_list *cats, bool flush_caches)
 }
 
 ```
+
 从上述代码可以看出，将分类中的属性，协议，方法列表，malloc分配好对应的内存，然后在分类的这些东西添加到对应的类对象的class_rw_t对象中。将分类和类对象本身进行合并。
 <br>
 接下来继续查看attachLists函数
+
 ```c
 void attachLists(List* const * addedLists, uint32_t addedCount) {
         if (addedCount == 0) return;
@@ -370,8 +380,9 @@ void attachLists(List* const * addedLists, uint32_t addedCount) {
         }
     }
 ```
-array()->lists：类对象原来的方法列表，属性列表，协议列表
-addedLists：分类的方法列表，属性列表，协议列表
+
+**array()->lists：类对象原来的方法列表，属性列表，协议列表
+addedLists：分类的方法列表，属性列表，协议列表**
 <br>
 经过memmove,将类本身列表的内存地址往后移。
 memcpy后，内存的分别情况如下
@@ -381,6 +392,7 @@ memcpy后，内存的分别情况如下
 其实经过上面的分析我们知道本质上并不是覆盖，而是优先调用。本类的方法依然在内存中的。
 
 我们可以进行测试，看类中的方法是不是依然存在？
+
 ```C
  Person *p = [[Person alloc] init];
         [p run];
@@ -405,6 +417,7 @@ memcpy后，内存的分别情况如下
     // Person (Test2) - run
     // ersonMethod, run, run, height, setHeight:, test, age, setAge:,    
 ```
+
 有结果可知，发现打印中的结果有两个run方法名。
 
 **总结：**
@@ -521,11 +534,14 @@ void _class_initialize(Class cls)
     ...
 }
 ```
+
 initialize是通过消息发送机制调用的，消息发送机制通过isa指针找到对应的方法与实现，因此先找到分类方法中的实现，会优先调用分类方法中的实现。
 通过代码验证，,Person，Person+test中都实现initialize方法，可以发现
+
 ```C
 Person+test initialize
 ```
+
 最后会调用分类中的initialize方法
 
 **总结：**
