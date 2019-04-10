@@ -525,7 +525,8 @@ static void call_class_loads(void)
 
 <br>
 查看initialize源码，在objc_initialize.mm文件中
-```C
+
+```c
 void _class_initialize(Class cls)
 {
     ...
@@ -538,7 +539,7 @@ void _class_initialize(Class cls)
 initialize是通过消息发送机制调用的，消息发送机制通过isa指针找到对应的方法与实现，因此先找到分类方法中的实现，会优先调用分类方法中的实现。
 通过代码验证，,Person，Person+test中都实现initialize方法，可以发现
 
-```C
+```c
 Person+test initialize
 ```
 
